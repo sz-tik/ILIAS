@@ -258,6 +258,16 @@ class ilDclFieldEditGUI
             foreach (ilDclDatatype::getAllDatatype() as $datatype) {
                 $model = new ilDclBaseFieldModel();
                 $model->setDatatypeId($datatype->getId());
+                //check plugin field type for validity (no plugins - the type must not be displayed)
+                if ($model->getDatatypeId() === ilDclDatatype::INPUTFORMAT_PLUGIN) {
+                    $ilPluginAdmin = $DIC['ilPluginAdmin'];
+                    $pluginIterator = $ilPluginAdmin->getComponentRepository()->getPluginSlotById("dclfth")->getPlugins();
+                    if (iterator_count($pluginIterator) === 0) {
+                        //todo  keine Plugins installiert -> Warning erst mal nur zum testen -> später weg
+                        $this->main_tpl->setOnScreenMessage('info', "no plugins installed - field '" . $model->getTitle() . "' will be ignored", true);
+                        continue;
+                    }
+                }
                 $field_representation = ilDclFieldFactory::getFieldRepresentationInstance($model);
                 $field_representation->addFieldCreationForm($edit_datatype, $this->getDataCollectionObject());
             }
