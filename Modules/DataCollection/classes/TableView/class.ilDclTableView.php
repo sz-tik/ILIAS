@@ -72,12 +72,6 @@ class ilDclTableView extends ActiveRecord
      * @var ilDclBaseFieldModel[]
      */
     protected array $visible_fields_cache = [];
-
-    /**
-     * @var bool
-     */
-    protected bool $visible_fields_cache_empty = false;
-
     /**
      * @var ilGlobalTemplateInterface
      */
@@ -237,8 +231,7 @@ class ilDclTableView extends ActiveRecord
         //todo ist das richtig - oder legacy ui
         $this->main_tpl = $DIC->ui()->mainTemplate();
 
-        if (!$this->visible_fields_cache
-            && !$this->visible_fields_cache_empty) {
+        if (!$this->visible_fields_cache) {
             $visible = ilDclTableViewFieldSetting::where(
                 [
                     "tableview_id" => $this->id,
@@ -253,28 +246,21 @@ class ilDclTableView extends ActiveRecord
             )->orderBy('il_dcl_tfield_set.field_order')->get();
             $fields = [];
             foreach ($visible as $field_rec) {
+                //field type 'Plugin':
+                //hide field if no plugins available, mantis #0041510
+                $model = new ilDclBaseFieldModel((int) $field_rec->getField());
 
-                //Sonderbehandlung für field datatype 'Plugin':
-                //Feld ausblenden, wenn keine Plugins vorhanden sind, mantis #0041510
-
-                $testfield = new ilDclBaseFieldModel((int) $field_rec->getField());
-
-                if ($testfield->getDatatypeId() === ilDclDatatype::INPUTFORMAT_PLUGIN) {
+                if ($model->getDatatypeId() === ilDclDatatype::INPUTFORMAT_PLUGIN) {
                     $ilPluginAdmin = $DIC['ilPluginAdmin'];
                     $pluginIterator = $ilPluginAdmin->getComponentRepository()->getPluginSlotById("dclfth")->getPlugins();
                     if (iterator_count($pluginIterator) === 0) {
                         //todo  keine Plugins installiert -> Warning
-                        $this->main_tpl->setOnScreenMessage('info', "no plugins installed - field '" . $testfield->getTitle() . "' will be ignored", true);
+                        $this->main_tpl->setOnScreenMessage('info', "no plugins installed - field '" . $model->getTitle() . "' will be ignored", true);
                         continue;
                     }
                 }
 
                 $fields[] = $field_rec->getFieldObject();
-            }
-            //sza - ??? Fall, dass nun gar keine visible fields vorhanden sind
-            //todo  prüfen, ob das notwendig ist
-            if (empty($fields)) {
-                $this->visible_fields_cache_empty = true;  //there are indeed no visible fields
             }
             $this->visible_fields_cache = $fields;
         }
